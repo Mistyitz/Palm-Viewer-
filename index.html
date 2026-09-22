@@ -1,1 +1,714 @@
 
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>palm — Search & Play Unlimited Games</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        palm: {
+                            bg: '#08080a',
+                            card: '#111116',
+                            border: '#261820',
+                            red: '#ff0033',
+                            redGlow: '#ff2a4b',
+                            darkRed: '#80001a',
+                            textMuted: '#9ca3af'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Outfit', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace']
+                    },
+                    boxShadow: {
+                        'neon': '0 0 15px rgba(255, 0, 51, 0.4), 0 0 30px rgba(255, 0, 51, 0.2)',
+                        'neon-lg': '0 0 25px rgba(255, 0, 51, 0.6), 0 0 50px rgba(255, 0, 51, 0.3)',
+                        'card-glow': '0 8px 30px rgba(255, 0, 51, 0.15)'
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        body {
+            background-color: #08080a;
+            color: #f3f4f6;
+            font-family: 'Outfit', sans-serif;
+            overflow-x: hidden;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #08080a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #261820;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #ff0033;
+        }
+
+        /* Glow utilities */
+        .text-glow {
+            text-shadow: 0 0 12px rgba(255, 0, 51, 0.7), 0 0 25px rgba(255, 0, 51, 0.4);
+        }
+        
+        .border-glow {
+            box-shadow: 0 0 15px rgba(255, 0, 51, 0.3);
+        }
+
+        .border-glow:focus-within {
+            box-shadow: 0 0 25px rgba(255, 0, 51, 0.6);
+        }
+
+        /* Custom Background Grid Canvas */
+        #bgCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 0;
+            pointer-events: none;
+            opacity: 0.35;
+        }
+
+        /* Card transition effects */
+        .game-card {
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .game-card:hover {
+            transform: translateY(-5px);
+            border-color: #ff0033;
+            box-shadow: 0 10px 25px -5px rgba(255, 0, 51, 0.3);
+        }
+
+        /* Glassmorphism */
+        .glass-panel {
+            background: rgba(17, 17, 22, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 0, 51, 0.15);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col relative selection:bg-palm-red selection:text-white">
+
+    <!-- Canvas Background -->
+    <canvas id="bgCanvas"></canvas>
+
+    <!-- Navigation Header -->
+    <header class="relative z-10 w-full px-6 py-4 flex items-center justify-between border-b border-palm-border/50 glass-panel">
+        <div class="flex items-center gap-3 cursor-pointer" onclick="resetSearch()">
+            <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-palm-red to-palm-darkRed flex items-center justify-center shadow-neon">
+                <i class="fa-solid font-bold text-white text-lg">P</i>
+            </div>
+            <span class="text-2xl font-extrabold tracking-wider text-white font-mono">palm<span class="text-palm-red text-glow">.</span></span>
+        </div>
+
+        <div class="flex items-center gap-4">
+            <button onclick="toggleUGSModal()" class="px-3 py-1.5 rounded-lg bg-palm-card border border-palm-red/30 hover:border-palm-red text-xs font-semibold text-gray-300 hover:text-white transition-all flex items-center gap-2">
+                <i class="fa-solid fa-plus text-palm-red"></i> Import UGS / JSON
+            </button>
+            <button onclick="toggleBgEffect()" id="bgToggleBtn" class="p-2 rounded-lg bg-palm-card border border-palm-border hover:border-palm-red/50 text-gray-400 hover:text-white text-xs transition-all" title="Toggle Grid Animation">
+                <i class="fa-solid fa-wand-magic-sparkles"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="relative z-10 flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col items-center">
+        
+        <!-- Search Engine Hero Section -->
+        <div class="w-full max-w-3xl text-center mt-4 mb-8">
+            <h1 class="text-5xl sm:text-7xl font-black tracking-tight text-white mb-2 font-mono">
+                p<span class="text-palm-red text-glow">a</span>lm
+            </h1>
+            <p class="text-gray-400 text-sm sm:text-base font-light mb-6">Search, discover, and play unblocked web games instantly.</p>
+
+            <!-- Search Input Box -->
+            <div class="relative w-full">
+                <div class="relative flex items-center w-full rounded-2xl bg-palm-card border border-palm-red/30 border-glow transition-all">
+                    <i class="fa-solid fa-magnifying-glass text-palm-red text-lg pl-5"></i>
+                    <input type="text" id="searchInput" oninput="filterGames()" placeholder="Search titles, categories, or keywords (Press '/' to focus)..." 
+                           class="w-full py-4 pl-4 pr-12 bg-transparent text-white placeholder-gray-500 font-sans text-base focus:outline-none">
+                    <button id="clearSearchBtn" onclick="clearSearch()" class="hidden absolute right-4 text-gray-500 hover:text-white">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Category Pills Filter -->
+            <div class="flex flex-wrap items-center justify-center gap-2 mt-5" id="categoryPills">
+                <!-- Javascript will inject categories here -->
+            </div>
+        </div>
+
+        <!-- Games Grid Controls & Status -->
+        <div class="w-full flex items-center justify-between mb-4 px-1">
+            <div class="flex items-center gap-2 text-sm text-gray-400">
+                <span class="inline-block w-2 h-2 rounded-full bg-palm-red animate-pulse"></span>
+                <span id="gameCount">Loading games...</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <label class="text-xs text-gray-400">Sort:</label>
+                <select id="sortSelect" onchange="filterGames()" class="bg-palm-card text-xs text-gray-300 border border-palm-border rounded-lg px-2 py-1 focus:outline-none focus:border-palm-red">
+                    <option value="popular">Most Popular</option>
+                    <option value="alpha">A - Z</option>
+                    <option value="newest">Recently Added</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Game Cards Grid -->
+        <div id="gamesGrid" class="w-full grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
+            <!-- Game Cards dynamically injected here -->
+        </div>
+
+        <!-- No Results Fallback -->
+        <div id="noResults" class="hidden flex-col items-center justify-center py-16 text-center">
+            <i class="fa-solid fa-ghost text-5xl text-palm-red/40 mb-4"></i>
+            <h3 class="text-xl font-bold text-white mb-1">No games found</h3>
+            <p class="text-gray-500 text-sm max-w-sm">Try searching for something else or import a UGS file feed using the top button.</p>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="relative z-10 w-full py-6 border-t border-palm-border/40 text-center text-xs text-gray-500">
+        <p>palm Search Engine &bull; Dark Crimson Edition &bull; Fast, Lightweight & Filter-Free Play</p>
+    </footer>
+
+    <!-- Launch / Play Modal -->
+    <div id="gameModal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/80 backdrop-blur-md p-4 sm:p-6">
+        <div class="relative w-full max-w-5xl h-[85vh] bg-palm-card border border-palm-red/40 rounded-2xl flex flex-col overflow-hidden shadow-neon-lg">
+            
+            <!-- Modal Header / Controls -->
+            <div class="flex items-center justify-between px-4 py-3 bg-palm-bg border-b border-palm-border">
+                <div class="flex items-center gap-3">
+                    <span id="modalGameIcon" class="w-7 h-7 rounded bg-palm-red/20 text-palm-red flex items-center justify-center text-xs font-bold">
+                        <i class="fa-solid fa-gamepad"></i>
+                    </span>
+                    <h3 id="modalGameTitle" class="text-white font-bold text-base truncate max-w-xs sm:max-w-md">Game Title</h3>
+                </div>
+
+                <!-- Launch Action Buttons -->
+                <div class="flex items-center gap-2">
+                    <button onclick="launchAboutBlank()" title="Open in Cloaked about:blank Window" class="px-3 py-1.5 rounded-lg bg-palm-red/20 hover:bg-palm-red text-palm-red hover:text-white border border-palm-red/40 text-xs font-semibold transition-all flex items-center gap-1.5">
+                        <i class="fa-solid fa-user-ninja"></i> <span class="hidden sm:inline">about:blank</span> Mode
+                    </button>
+                    <button onclick="toggleFullscreen()" title="Fullscreen" class="p-2 rounded-lg bg-palm-border hover:bg-gray-700 text-gray-300 text-xs">
+                        <i class="fa-solid fa-expand"></i>
+                    </button>
+                    <button onclick="reloadGameFrame()" title="Reload Frame" class="p-2 rounded-lg bg-palm-border hover:bg-gray-700 text-gray-300 text-xs">
+                        <i class="fa-solid fa-rotate-right"></i>
+                    </button>
+                    <button onclick="closeGameModal()" title="Close Modal" class="p-2 rounded-lg bg-red-950/60 hover:bg-palm-red text-red-300 hover:text-white text-xs ml-2">
+                        <i class="fa-solid fa-xmark text-sm"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Modal Game Player Iframe Container -->
+            <div class="relative flex-1 bg-black w-full h-full flex items-center justify-center overflow-hidden" id="modalFrameContainer">
+                <iframe id="gameIframe" class="w-full h-full border-0" allow="fullscreen; autoplay; gamepad"></iframe>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom UGS / JSON Importer Modal -->
+    <div id="ugsModal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
+        <div class="relative w-full max-w-lg bg-palm-card border border-palm-red/40 rounded-2xl p-6 shadow-neon">
+            <div class="flex justify-between items-center mb-4 border-b border-palm-border pb-3">
+                <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-file-code text-palm-red"></i> Import UGS / Custom Games
+                </h3>
+                <button onclick="toggleUGSModal()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <p class="text-xs text-gray-400 mb-4">Paste a direct JSON URL (UGS feed format) or raw JSON code to dynamically load external games into palm's red/black interface.</p>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 mb-1">Import via JSON Feed URL:</label>
+                    <input type="text" id="ugsUrlInput" placeholder="https://example.com/games.json" 
+                           class="w-full p-2.5 bg-palm-bg border border-palm-border rounded-xl text-xs text-white focus:outline-none focus:border-palm-red">
+                </div>
+
+                <div class="text-center text-xs text-gray-500 font-bold">— OR PASTE RAW JSON —</div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 mb-1">Raw JSON Array:</label>
+                    <textarea id="ugsRawInput" rows="4" placeholder='[{"title": "Custom Game", "url": "https://...", "category": "Action"}]' 
+                              class="w-full p-2.5 bg-palm-bg border border-palm-border rounded-xl text-xs text-white font-mono focus:outline-none focus:border-palm-red"></textarea>
+                </div>
+
+                <div id="ugsImportStatus" class="hidden text-xs py-2 px-3 rounded-lg bg-palm-bg border"></div>
+
+                <div class="flex gap-2 justify-end pt-2">
+                    <button onclick="toggleUGSModal()" class="px-4 py-2 rounded-xl bg-palm-border text-xs text-gray-300 hover:text-white font-semibold">Cancel</button>
+                    <button onclick="processUGSImport()" class="px-4 py-2 rounded-xl bg-palm-red hover:bg-red-600 text-xs text-white font-bold transition-all shadow-neon">Import Games</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript Application Logic -->
+    <script>
+        
+        // Active Game State
+        let currentGame = null;
+        let allGames = [];
+        let activeCategory = 'All';
+        let bgAnimationActive = true;
+
+        // Built-in Lightweight Playable HTML5 & Web Games
+        const defaultGames = [
+            {
+                id: 'snake',
+                title: 'Retro Neon Snake',
+                category: 'Arcade',
+                tags: ['Classic', 'Arcade'],
+                description: 'Classic arcade Snake rendered with custom cyberpunk neon graphics.',
+                thumbnail: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400&q=80',
+                type: 'html',
+                content: `<!DOCTYPE html><html><head><style>body{margin:0;background:#08080a;color:#fff;font-family:sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;overflow:hidden;}canvas{border:2px solid #ff0033;box-shadow:0 0 20px rgba(255,0,51,0.5);border-radius:8px;}h2{margin:0 0 10px 0;color:#ff0033;text-shadow:0 0 10px #ff0033;}#score{font-size:18px;margin-bottom:10px;}</style></head><body><h2>NEON SNAKE</h2><div id="score">Score: 0</div><canvas id="gc" width="400" height="400"></canvas><script>var canvas,ctx;window.onload=function(){canvas=document.getElementById("gc");ctx=canvas.getContext("2d");document.addEventListener("keydown",keyPush);setInterval(game,1000/15);};px=py=10;gs=tc=20;ax=ay=15;xv=yv=0;trail=[];tail=5;score=0;function game(){px+=xv;py+=yv;if(px<0){px=tc-1;}if(px>tc-1){px=0;}if(py<0){py=tc-1;}if(py>tc-1){py=0;}ctx.fillStyle="#08080a";ctx.fillRect(0,0,canvas.width,canvas.height);ctx.fillStyle="#ff0033";for(var i=0;i<trail.length;i++){ctx.fillRect(trail[i].x*gs,trail[i].y*gs,gs-2,gs-2);if(trail[i].x==px&&trail[i].y==py){tail=5;score=0;document.getElementById("score").innerText="Score: "+score;}}trail.push({x:px,y:py});while(trail.length>tail){trail.shift();}if(ax==px&&ay==py){tail++;score+=10;document.getElementById("score").innerText="Score: "+score;ax=Math.floor(Math.random()*tc);ay=Math.floor(Math.random()*tc);}ctx.fillStyle="#00ffff";ctx.fillRect(ax*gs,ay*gs,gs-2,gs-2);}function keyPush(evt){switch(evt.keyCode){case 37:if(xv!==1){xv=-1;yv=0;}break;case 38:if(yv!==1){xv=0;yv=-1;}break;case 39:if(xv!==-1){xv=1;yv=0;}break;case 40:if(yv!==-1){xv=0;yv=1;}break;}}<\/script></body></html>`
+            },
+            {
+                id: 'pong',
+                title: 'Cyber Pong 1972',
+                category: 'Retro',
+                tags: ['Retro', '2 Player'],
+                description: 'Fast-paced arcade table tennis with smooth paddle mechanics.',
+                thumbnail: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?w=400&q=80',
+                type: 'html',
+                content: `<!DOCTYPE html><html><head><style>body{margin:0;background:#050508;color:#fff;font-family:sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;}canvas{border:2px solid #ff0033;box-shadow:0 0 20px rgba(255,0,51,0.4);border-radius:10px;}</style></head><body><h1 style="color:#ff0033;margin-bottom:5px;">CYBER PONG</h1><p style="color:#888;font-size:12px;margin-top:0;">Use Mouse to Move Paddle</p><canvas id="pongCanvas" width="600" height="350"></canvas><script>const canvas=document.getElementById("pongCanvas");const ctx=canvas.getContext("2d");let ballX=canvas.width/2,ballY=canvas.height/2,ballSpeedX=5,ballSpeedY=3;let paddle1Y=250,paddle2Y=250;const PADDLE_HEIGHT=80,PADDLE_THICKNESS=10;let score1=0,score2=0;canvas.addEventListener('mousemove',e=>{let rect=canvas.getBoundingClientRect();paddle1Y=e.clientY-rect.top-(PADDLE_HEIGHT/2);});function draw(){ctx.fillStyle="#08080a";ctx.fillRect(0,0,canvas.width,canvas.height);ctx.fillStyle="#ff0033";ctx.fillRect(0,paddle1Y,PADDLE_THICKNESS,PADDLE_HEIGHT);ctx.fillStyle="#ffffff";ctx.fillRect(canvas.width-PADDLE_THICKNESS,paddle2Y,PADDLE_THICKNESS,PADDLE_HEIGHT);ctx.beginPath();ctx.arc(ballX,ballY,8,0,Math.PI*2);ctx.fillStyle="#ff0033";ctx.fill();ctx.font="24px monospace";ctx.fillText(score1,150,50);ctx.fillText(score2,450,50);}function move(){ballX+=ballSpeedX;ballY+=ballSpeedY;if(ballY<0||ballY>canvas.height)ballSpeedY=-ballSpeedY;if(ballX<PADDLE_THICKNESS){if(ballY>paddle1Y&&ballY<paddle1Y+PADDLE_HEIGHT){ballSpeedX=-ballSpeedX;}else{score2++;resetBall();}}if(ballX>canvas.width-PADDLE_THICKNESS){if(ballY>paddle2Y&&ballY<paddle2Y+PADDLE_HEIGHT){ballSpeedX=-ballSpeedX;}else{score1++;resetBall();}}if(paddle2Y+PADDLE_HEIGHT/2<ballY-20)paddle2Y+=4;else if(paddle2Y+PADDLE_HEIGHT/2>ballY+20)paddle2Y-=4;}function resetBall(){ballX=canvas.width/2;ballY=canvas.height/2;ballSpeedX=-ballSpeedX;}setInterval(()=>{move();draw();},1000/60);<\/script></body></html>`
+            },
+            {
+                id: '2048',
+                title: '2048 Redline Edition',
+                category: 'Puzzle',
+                tags: ['Puzzle', 'Strategy'],
+                description: 'Join the numbers and get to the 2048 tile in a customized dark mode UI.',
+                thumbnail: 'https://images.unsplash.com/photo-1614680376593-902f749f7ba3?w=400&q=80',
+                type: 'url',
+                url: 'https://play2048.co/'
+            },
+            {
+                id: 'space-invaders',
+                title: 'Crimson Invaders',
+                category: 'Action',
+                tags: ['Action', 'Shooter'],
+                description: 'Defend earth from waves of crimson alien ships in this arcade classic shooter.',
+                thumbnail: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=400&q=80',
+                type: 'html',
+                content: `<!DOCTYPE html><html><head><style>body{margin:0;background:#050508;color:#fff;font-family:sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;}canvas{border:2px solid #ff0033;box-shadow:0 0 20px rgba(255,0,51,0.5);border-radius:8px;}</style></head><body><h2 style="color:#ff0033;margin:0 0 5px 0;">CRIMSON INVADERS</h2><p style="color:#aaa;font-size:12px;margin-bottom:10px;">Arrow Keys to Move &bull; Spacebar to Shoot</p><canvas id="invCanvas" width="480" height="400"></canvas><script>const canvas=document.getElementById("invCanvas");const ctx=canvas.getContext("2d");let player={x:220,y:370,w:30,h:15};let bullets=[];let aliens=[];let keys={};for(let r=0;r<3;r++){for(let c=0;c<7;c++){aliens.push({x:40+c*55,y:30+r*35,w:30,h:20,alive:true});}}document.addEventListener('keydown',e=>keys[e.code]=true);document.addEventListener('keyup',e=>keys[e.code]=false);function update(){if(keys['ArrowLeft']&&player.x>0)player.x-=4;if(keys['ArrowRight']&&player.x<canvas.width-player.w)player.x+=4;if(keys['Space']){if(!player.lastShoot||Date.now()-player.lastShoot>250){bullets.push({x:player.x+13,y:player.y,w:4,h:10});player.lastShoot=Date.now();}}bullets.forEach((b,bi)=>{b.y-=6;aliens.forEach(a=>{if(a.alive&&b.x>a.x&&b.x<a.x+a.w&&b.y>a.y&&b.y<a.y+a.h){a.alive=false;bullets.splice(bi,1);}});});}function draw(){ctx.fillStyle="#08080a";ctx.fillRect(0,0,canvas.width,canvas.height);ctx.fillStyle="#00ffcc";ctx.fillRect(player.x,player.y,player.w,player.h);ctx.fillStyle="#ff0033";bullets.forEach(b=>ctx.fillRect(b.x,b.y,b.w,b.h));aliens.forEach(a=>{if(a.alive){ctx.fillStyle="#ff2a4b";ctx.fillRect(a.x,a.y,a.w,a.h);}});};setInterval(()=>{update();draw();},1000/60);<\/script></body></html>`
+            },
+            {
+                id: 'flappy',
+                title: 'Flappy Bird Redux',
+                category: 'Arcade',
+                tags: ['Arcade', 'Hard'],
+                description: 'Navigate through endless pipe obstacles with precise timing.',
+                thumbnail: 'https://images.unsplash.com/photo-1579373903781-fd5c0c30c4cd?w=400&q=80',
+                type: 'html',
+                content: `<!DOCTYPE html><html><head><style>body{margin:0;background:#08080a;color:#fff;font-family:sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;}canvas{border:2px solid #ff0033;border-radius:8px;}</style></head><body><h2 style="color:#ff0033;margin-bottom:5px;">FLAPPY REDUX</h2><p style="color:#888;font-size:12px;margin:0 0 10px 0;">Click or Spacebar to Jump</p><canvas id="fCanvas" width="320" height="420"></canvas><script>const canvas=document.getElementById("fCanvas");const ctx=canvas.getContext("2d");let bird={x:50,y:150,v:0,g:0.25,j:-5.5};let pipes=[];let frame=0,score=0;function jump(){bird.v=bird.j;}window.addEventListener('keydown',e=>{if(e.code==='Space')jump();});canvas.addEventListener('click',jump);function loop(){bird.v+=bird.g;bird.y+=bird.v;if(frame%90===0){let top=Math.random()*(canvas.height-180)+30;pipes.push({x:canvas.width,top:top,bottom:top+120});}pipes.forEach((p,i)=>{p.x-=2;if(bird.x+10>p.x&&bird.x-10<p.x+40&&(bird.y-10<p.top||bird.y+10>p.bottom)){bird.y=150;bird.v=0;pipes=[];score=0;}if(p.x==50)score++;});if(bird.y>canvas.height||bird.y<0){bird.y=150;bird.v=0;pipes=[];score=0;}ctx.fillStyle="#08080a";ctx.fillRect(0,0,canvas.width,canvas.height);ctx.fillStyle="#ff0033";ctx.beginPath();ctx.arc(bird.x,bird.y,10,0,Math.PI*2);ctx.fill();ctx.fillStyle="#221118";pipes.forEach(p=>{ctx.fillRect(p.x,0,40,p.top);ctx.fillRect(p.x,p.bottom,40,canvas.height-p.bottom);});ctx.fillStyle="#fff";ctx.font="20px sans-serif";ctx.fillText("Score: "+score,10,30);frame++;requestAnimationFrame(loop);}loop();<\/script></body></html>`
+            },
+            {
+                id: 'tic-tac-toe',
+                title: 'Glow Cyber Toe',
+                category: 'Puzzle',
+                tags: ['2 Player', 'Strategy'],
+                description: 'Modern cyberpunk neon tic-tac-toe versus player or AI.',
+                thumbnail: 'https://images.unsplash.com/photo-1611996575749-79a3a250f948?w=400&q=80',
+                type: 'html',
+                content: `<!DOCTYPE html><html><head><style>body{margin:0;background:#08080a;color:#fff;font-family:sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;}.grid{display:grid;grid-template-columns:repeat(3,90px);gap:10px;}.cell{width:90px;height:90px;background:#111116;border:1px solid #ff0033;display:flex;align-items:center;justify-content:center;font-size:36px;font-weight:bold;color:#ff0033;cursor:pointer;border-radius:8px;box-shadow:0 0 10px rgba(255,0,51,0.2);}</style></head><body><h2 style="color:#ff0033;margin-bottom:15px;">CYBER TOE</h2><div class="grid" id="grid"></div><p id="st" style="margin-top:15px;color:#aaa;">Turn: X</p><script>const g=document.getElementById('grid');let b=Array(9).fill('');let turn='X';function init(){g.innerHTML='';b.forEach((v,i)=>{let c=document.createElement('div');c.className='cell';c.innerText=v;c.onclick=()=>click(i);g.appendChild(c);});}function click(i){if(b[i]||checkWin())return;b[i]=turn;turn=turn==='X'?'O':'X';document.getElementById('st').innerText='Turn: '+turn;init();let w=checkWin();if(w)document.getElementById('st').innerText=w==='T'?'Tie Game!':'Winner: '+w;}function checkWin(){const p=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];for(let x of p){if(b[x[0]]&&b[x[0]]===b[x[1]]&&b[x[0]]===b[x[2]])return b[x[0]];}return b.includes('')?null:'T';}init();<\/script></body></html>`
+            }
+        ];
+
+        window.addEventListener('DOMContentLoaded', () => {
+            initBackgroundCanvas();
+            loadAllGames();
+            setupHotkeyListeners();
+        });
+
+        // Initialize All Games (Built-in + LocalStorage imports)
+        function loadAllGames() {
+            let savedCustom = [];
+            try {
+                savedCustom = JSON.parse(localStorage.getItem('palm_custom_games') || '[]');
+            } catch(e) { savedCustom = []; }
+
+            allGames = [...defaultGames, ...savedCustom];
+            renderCategories();
+            filterGames();
+        }
+
+        function renderCategories() {
+            const categories = ['All', ...new Set(allGames.map(g => g.category || 'UGS Games'))];
+            const container = document.getElementById('categoryPills');
+            
+            container.innerHTML = categories.map(cat => `
+                <button onclick="setCategory('${cat}')" 
+                        class="px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                            activeCategory === cat 
+                            ? 'bg-palm-red text-white shadow-neon' 
+                            : 'bg-palm-card text-gray-400 border border-palm-border hover:border-palm-red/40 hover:text-white'
+                        }">
+                    ${cat}
+                </button>
+            `).join('');
+        }
+
+        function setCategory(cat) {
+            activeCategory = cat;
+            renderCategories();
+            filterGames();
+        }
+
+        function filterGames() {
+            const query = document.getElementById('searchInput').value.toLowerCase().trim();
+            const sortVal = document.getElementById('sortSelect').value;
+            const clearBtn = document.getElementById('clearSearchBtn');
+
+            clearBtn.classList.toggle('hidden', query === '');
+
+            let filtered = allGames.filter(game => {
+                const matchesCat = (activeCategory === 'All') || (game.category === activeCategory);
+                const matchesQuery = !query || 
+                    game.title.toLowerCase().includes(query) || 
+                    (game.description && game.description.toLowerCase().includes(query)) ||
+                    (game.tags && game.tags.some(t => t.toLowerCase().includes(query)));
+                return matchesCat && matchesQuery;
+            });
+
+            // Sorting
+            if (sortVal === 'alpha') {
+                filtered.sort((a, b) => a.title.localeCompare(b.title));
+            } else if (sortVal === 'newest') {
+                filtered.reverse();
+            }
+
+            renderGamesGrid(filtered);
+        }
+
+        function clearSearch() {
+            document.getElementById('searchInput').value = '';
+            filterGames();
+        }
+
+        function resetSearch() {
+            document.getElementById('searchInput').value = '';
+            activeCategory = 'All';
+            renderCategories();
+            filterGames();
+        }
+
+        function renderGamesGrid(games) {
+            const grid = document.getElementById('gamesGrid');
+            const countElem = document.getElementById('gameCount');
+            const noResults = document.getElementById('noResults');
+
+            countElem.innerText = `${games.length} game${games.length === 1 ? '' : 's'} available`;
+
+            if (games.length === 0) {
+                grid.innerHTML = '';
+                noResults.classList.remove('hidden');
+                noResults.classList.add('flex');
+                return;
+            }
+
+            noResults.classList.add('hidden');
+            noResults.classList.remove('flex');
+
+            grid.innerHTML = games.map(game => {
+                const imgUrl = game.thumbnail || `https://placehold.co/400x250/111116/ff0033?text=${encodeURIComponent(game.title)}`;
+                const tagBadges = (game.tags || [game.category || 'Game']).map(t => 
+                    `<span class="px-2 py-0.5 rounded bg-palm-darkRed/40 border border-palm-red/30 text-[10px] text-palm-red font-mono">${t}</span>`
+                ).join(' ');
+
+                return `
+                    <div class="game-card bg-palm-card border border-palm-border rounded-2xl overflow-hidden flex flex-col justify-between group cursor-pointer" onclick="openGameModal('${game.id}')">
+                        <div class="relative w-full h-36 bg-palm-bg overflow-hidden">
+                            <img src="${imgUrl}" alt="${game.title}" 
+                                 onerror="this.onerror=null; this.src='https://placehold.co/400x250/111116/ff0033?text=${encodeURIComponent(game.title)}';"
+                                 class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
+                            <div class="absolute inset-0 bg-gradient-to-t from-palm-card via-transparent to-transparent opacity-80"></div>
+                            <div class="absolute top-2 right-2 flex gap-1">
+                                ${tagBadges}
+                            </div>
+                        </div>
+
+                        <div class="p-4 flex-1 flex flex-col justify-between">
+                            <div>
+                                <h4 class="text-white font-bold text-base group-hover:text-palm-red transition-colors line-clamp-1">${game.title}</h4>
+                                <p class="text-gray-400 text-xs mt-1 line-clamp-2 leading-relaxed">${game.description || 'Play ' + game.title + ' instantly in your browser.'}</p>
+                            </div>
+
+                            <div class="mt-4 pt-3 border-t border-palm-border/50 flex items-center justify-between">
+                                <span class="text-[11px] text-gray-500 font-mono"><i class="fa-solid fa-play text-palm-red text-[10px] mr-1"></i> Ready</span>
+                                <span class="text-xs font-bold text-palm-red group-hover:translate-x-1 transition-transform inline-flex items-center gap-1">
+                                    PLAY <i class="fa-solid fa-chevron-right text-[10px]"></i>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function openGameModal(gameId) {
+            const game = allGames.find(g => g.id === gameId);
+            if (!game) return;
+
+            currentGame = game;
+            document.getElementById('modalGameTitle').innerText = game.title;
+            const modal = document.getElementById('gameModal');
+            const iframe = document.getElementById('gameIframe');
+
+            modal.classList.remove('hidden');
+
+            // Load iframe based on type
+            if (game.type === 'html') {
+                iframe.srcdoc = game.content;
+            } else if (game.url) {
+                iframe.removeAttribute('srcdoc');
+                iframe.src = game.url;
+            }
+        }
+
+        function closeGameModal() {
+            const modal = document.getElementById('gameModal');
+            const iframe = document.getElementById('gameIframe');
+            iframe.src = 'about:blank';
+            iframe.removeAttribute('srcdoc');
+            modal.classList.add('hidden');
+            currentGame = null;
+        }
+
+        function reloadGameFrame() {
+            if (!currentGame) return;
+            const iframe = document.getElementById('gameIframe');
+            if (currentGame.type === 'html') {
+                iframe.srcdoc = currentGame.content;
+            } else {
+                iframe.src = currentGame.url;
+            }
+        }
+
+        function toggleFullscreen() {
+            const container = document.getElementById('modalFrameContainer');
+            if (!document.fullscreenElement) {
+                container.requestFullscreen().catch(err => alert("Error entering fullscreen"));
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        function launchAboutBlank() {
+            if (!currentGame) return;
+
+            const win = window.open('about:blank', '_blank');
+            if (!win) {
+                alert('Popup blocked! Please allow popups to open games in about:blank cloaked window.');
+                return;
+            }
+
+            win.document.title = 'Classes'; // Cloaked Title
+            const body = win.document.body;
+            body.style.margin = '0';
+            body.style.height = '100vh';
+            body.style.backgroundColor = '#000';
+            body.style.overflow = 'hidden';
+
+            const iframe = win.document.createElement('iframe');
+            iframe.style.width = '100%';
+            iframe.style.height = '100%';
+            iframe.style.border = 'none';
+            iframe.allow = 'fullscreen; autoplay; gamepad';
+
+            if (currentGame.type === 'html') {
+                iframe.srcdoc = currentGame.content;
+            } else {
+                iframe.src = currentGame.url;
+            }
+
+            body.appendChild(iframe);
+            closeGameModal();
+        }
+
+        function toggleUGSModal() {
+            const modal = document.getElementById('ugsModal');
+            modal.classList.toggle('hidden');
+            document.getElementById('ugsImportStatus').classList.add('hidden');
+        }
+
+        async function processUGSImport() {
+            const urlInput = document.getElementById('ugsUrlInput').value.trim();
+            const rawInput = document.getElementById('ugsRawInput').value.trim();
+            const statusBox = document.getElementById('ugsImportStatus');
+
+            statusBox.classList.remove('hidden', 'bg-red-900/40', 'border-red-500', 'bg-green-900/40', 'border-green-500');
+            statusBox.innerHTML = '<i class="fa-solid fa-spinner animate-spin"></i> Parsing data...';
+
+            let parsedGames = [];
+
+            try {
+                if (urlInput) {
+                    const res = await fetch(urlInput);
+                    const data = await res.json();
+                    parsedGames = parseUGSFeed(data);
+                } else if (rawInput) {
+                    const data = JSON.parse(rawInput);
+                    parsedGames = parseUGSFeed(data);
+                } else {
+                    throw new Error("Please provide either a JSON URL or paste JSON content.");
+                }
+
+                if (parsedGames.length === 0) throw new Error("No valid games could be parsed from the provided input.");
+
+                // Save to LocalStorage
+                let existing = JSON.parse(localStorage.getItem('palm_custom_games') || '[]');
+                let combined = [...existing, ...parsedGames];
+                
+                // Deduplicate by ID
+                const uniqueMap = new Map();
+                combined.forEach(g => uniqueMap.set(g.id, g));
+                const finalGames = Array.from(uniqueMap.values());
+
+                localStorage.setItem('palm_custom_games', JSON.stringify(finalGames));
+
+                statusBox.classList.add('bg-green-900/40', 'border-green-500');
+                statusBox.innerHTML = `<i class="fa-solid fa-circle-check text-green-400"></i> Successfully imported ${parsedGames.length} games!`;
+
+                setTimeout(() => {
+                    toggleUGSModal();
+                    loadAllGames();
+                }, 1200);
+
+            } catch(err) {
+                statusBox.classList.add('bg-red-900/40', 'border-red-500');
+                statusBox.innerHTML = `<i class="fa-solid fa-circle-exclamation text-red-400"></i> ${err.message}`;
+            }
+        }
+
+        // Standardize messy/varied UGS feeds into palm format
+        function parseUGSFeed(data) {
+            const list = Array.isArray(data) ? data : (data.games || data.items || []);
+            return list.map((item, idx) => {
+                const title = item.title || item.name || item.filename || `Imported Game ${idx + 1}`;
+                const cleanTitle = title.replace(/\.(html|js|zip|json)$/i, '').replace(/[-_]/g, ' ');
+                
+                return {
+                    id: 'ugs_' + Date.now() + '_' + idx,
+                    title: cleanTitle,
+                    category: item.category || item.genre || 'UGS Games',
+                    tags: item.tags || ['UGS', 'Custom'],
+                    description: item.description || `Imported game link: ${cleanTitle}`,
+                    thumbnail: item.image || item.thumbnail || item.icon || '',
+                    type: item.html ? 'html' : 'url',
+                    content: item.html || null,
+                    url: item.url || item.link || item.path || ''
+                };
+            }).filter(g => g.url || g.content);
+        }
+
+        function setupHotkeyListeners() {
+            window.addEventListener('keydown', (e) => {
+                if ((e.key === '/' || (e.ctrlKey && e.key === 'k')) && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+                    e.preventDefault();
+                    document.getElementById('searchInput').focus();
+                }
+                if (e.key === 'Escape') {
+                    closeGameModal();
+                    document.getElementById('ugsModal').classList.add('hidden');
+                }
+            });
+        }
+
+        function initBackgroundCanvas() {
+            const canvas = document.getElementById('bgCanvas');
+            const ctx = canvas.getContext('2d');
+
+            function resize() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            }
+            resize();
+            window.addEventListener('resize', resize);
+
+            let dots = [];
+            for (let i = 0; i < 50; i++) {
+                dots.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    vx: (Math.random() - 0.5) * 0.5,
+                    vy: (Math.random() - 0.5) * 0.5,
+                    size: Math.random() * 2 + 1
+                });
+            }
+
+            function animate() {
+                if (!bgAnimationActive) return;
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                // Grid background lines
+                ctx.strokeStyle = 'rgba(255, 0, 51, 0.05)';
+                ctx.lineWidth = 1;
+                const gridSize = 40;
+                for (let x = 0; x < canvas.width; x += gridSize) {
+                    ctx.beginPath();
+                    ctx.moveTo(x, 0);
+                    ctx.lineTo(x, canvas.height);
+                    ctx.stroke();
+                }
+                for (let y = 0; y < canvas.height; y += gridSize) {
+                    ctx.beginPath();
+                    ctx.moveTo(0, y);
+                    ctx.lineTo(canvas.width, y);
+                    ctx.stroke();
+                }
+
+                // Glowing particles
+                ctx.fillStyle = '#ff0033';
+                dots.forEach(d => {
+                    d.x += d.vx;
+                    d.y += d.vy;
+                    if (d.x < 0 || d.x > canvas.width) d.vx *= -1;
+                    if (d.y < 0 || d.y > canvas.height) d.vy *= -1;
+
+                    ctx.beginPath();
+                    ctx.arc(d.x, d.y, d.size, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+
+                requestAnimationFrame(animate);
+            }
+            animate();
+        }
+
+        function toggleBgEffect() {
+            bgAnimationActive = !bgAnimationActive;
+            const btn = document.getElementById('bgToggleBtn');
+            btn.classList.toggle('text-palm-red', bgAnimationActive);
+            if (bgAnimationActive) initBackgroundCanvas();
+        }
+    </script>
+</body>
+</html>
